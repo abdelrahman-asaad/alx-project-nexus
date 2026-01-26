@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+  <meta charset="UTF-8">
+  <title>Create Invoice</title>
+</head>
+<body>
+  <h2>Create New Invoice</h2>
+  <button onclick="window.location.href='/invoices/'">⬅ Back to Invoices</button>
+  <form id="createInvoiceForm">
+    <input type="text" id="client" placeholder="Client Name" required />
+    <input type="number" id="total_amount" placeholder="Total Amount" required />
+    <select id="status">
+      <option value="pending">Pending</option>
+      <option value="paid">Paid</option>
+    </select>
+    <button type="submit">Save</button>
+  </form>
+
+  <script src="{% static 'accounts/js/auth.js' %}"></script>
+  <script>
+    const createForm = document.getElementById("createInvoiceForm");
+
+    createForm.addEventListener("submit", async e => {
+      e.preventDefault();
+
+      const res = await authFetch("/api/invoices/", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({
+          client: document.getElementById("client").value,
+          total_amount: document.getElementById("total_amount").value,
+          status: document.getElementById("status").value
+        })
+      });
+
+      if (res.ok) {
+        alert("Invoice created successfully!");
+        window.location.href = "/invoices/";
+      } else {
+        alert("Error creating invoice!");
+      }
+    });
+  </script>
+</body>
+</html>

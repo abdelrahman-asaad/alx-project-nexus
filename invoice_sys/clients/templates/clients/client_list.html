@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+  <meta charset="UTF-8">
+  <title>Clients</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f6f7fb;
+    }
+
+    /* 🔹 شكل الـ Navbar */
+    .navbar {
+      background-color: #1e293b;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 20px;
+    }
+
+    .navbar .nav-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .navbar a {
+      color: white;
+      text-decoration: none;
+      font-weight: 500;
+      transition: 0.2s;
+    }
+
+    .navbar a:hover {
+      color: #38bdf8;
+    }
+
+    .content {
+      padding: 20px;
+    }
+
+    button {
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- 🔹 Navbar -->
+  <div class="navbar">
+    <div class="logo"><b>Invoice System</b></div>
+    <div class="nav-links" id="navLinks">
+      <a href="/clients/">Clients</a>
+      <a href="/invoices/">Invoices</a>
+      <a href="/products/">Products</a>
+      <a href="/payments/">Payments</a>
+      <a href="/auditlog/">Audit Log</a>
+      <a href="/users/">Users</a>
+      <a href="/dashboard/">Dashboard</a>
+    </div>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <div class="content">
+    <h2>Clients</h2>
+    <div id="clientList"></div>
+  </div>
+
+  <script src="{% static 'accounts/js/auth.js' %}"></script>
+  <script>
+    // 🔹 فلترة الروابط حسب صلاحية المستخدم
+    async function getUserRole() {
+      try {
+        const res = await authFetch("/api/accounts/me/");
+        if (!res.ok) return;
+        const user = await res.json();
+
+        const navLinks = document.getElementById("navLinks");
+
+        // لو المستخدم Sales: يخفي بعض اللينكات
+        if (user.role === "sales") {
+          const hidden = ["/users/", "/dashboard/", "/auditlog/"];
+          hidden.forEach(link => {
+            const el = navLinks.querySelector(`a[href='${link}']`);
+            if (el) el.style.display = "none";
+          });
+        }
+
+        // لو المستخدم Owner: يشوف كل حاجة
+        if (user.role === "owner") {
+          // كل اللينكات تفضل ظاهرة
+        }
+
+        // لو المستخدم Manager: يخفي auditlog فقط مثلًا
+        if (user.role === "manager") {
+          const el = navLinks.querySelector(`a[href='/auditlog/']`);
+          if (el) el.style.display = "none";
+        }
+
+      } catch (err) {
+        console.error("Error fetching role:", err);
+      }
+    }
+
+    // دالة لجلب العملاء (اختياري)
+    async function fetchClients() {
+      const res = await authFetch("/api/clients/");
+      const data = await res.json();
+      const list = document.getElementById("clientList");
+      list.innerHTML = data.results.map(c => `<p>${c.name} - ${c.email}</p>`).join("");
+    }
+
+    getUserRole();
+    fetchClients();
+  </script>
+
+</body>
+</html>

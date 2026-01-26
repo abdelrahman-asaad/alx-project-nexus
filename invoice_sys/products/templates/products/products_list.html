@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>إدارة المنتجات</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            background: #f8f9fa;
+            padding: 20px;
+            direction: rtl;
+        }
+        h1 { color: #333; }
+        input, button {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+        }
+        button:hover { background-color: #0056b3; }
+        #product-list li {
+            background: #fff;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <h1>📦 إدارة المنتجات</h1>
+
+    <div>
+        <input type="text" id="searchInput" placeholder="🔍 ابحث باسم المنتج">
+        <button onclick="searchProduct()">بحث</button>
+    </div>
+
+    <h3>➕ إضافة منتج جديد</h3>
+    <input type="text" id="newName" placeholder="اسم المنتج">
+    <input type="number" id="newPrice" placeholder="السعر">
+    <button onclick="addProduct()">إضافة</button>
+
+    <h3>📋 قائمة المنتجات</h3>
+    <ul id="product-list"></ul>
+
+    <script>
+        const apiBase = "/api/products/";
+
+        // تحميل جميع المنتجات
+        function loadProducts() {
+            fetch(apiBase)
+                .then(res => res.json())
+                .then(data => {
+                    const list = document.getElementById("product-list");
+                    list.innerHTML = "";
+                    data.forEach(product => {
+                        const li = document.createElement("li");
+                        li.innerHTML = `
+                            <b>${product.name}</b> - ${product.price} جنيه
+                            <button onclick="updateProduct(${product.id})">تحديث</button>
+                            <button onclick="deleteProduct(${product.id})">حذف</button>
+                        `;
+                        list.appendChild(li);
+                    });
+                });
+        }
+
+        // بحث عن منتج
+        function searchProduct() {
+            const name = document.getElementById("searchInput").value;
+            fetch(apiBase + `?search=${name}`)
+                .then(res => res.json())
+                .then(data => {
+                    const list = document.getElementById("product-list");
+                    list.innerHTML = "";
+                    data.forEach(product => {
+                        const li = document.createElement("li");
+                        li.textContent = `${product.name} - ${product.price}`;
+                        list.appendChild(li);
+                    });
+                });
+        }
+
+        // إضافة منتج جديد
+        function addProduct() {
+            const name = document.getElementById("newName").value;
+            const price = document.getElementById("newPrice").value;
+
+            fetch(apiBase, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name, price })
+            })
+            .then(res => {
+                if (res.ok) {
+                    alert("تمت إضافة المنتج بنجاح ✅");
+                    loadProducts();
+                } else {
+                    alert("حدث خطأ أثناء الإضافة ❌");
+                }
+            });
+        }
+
+        // تحديث منتج
+        function updateProduct(id) {
+            const newName = prompt("اسم المنتج الجديد:");
+            const newPrice = prompt("السعر الجديد:");
+
+            fetch(apiBase + id + "/", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: newName, price: newPrice })
+            })
+            .then(res => {
+                if (res.ok) {
+                    alert("تم التحديث ✅");
+                    loadProducts();
+                } else {
+                    alert("خطأ أثناء التحديث ❌");
+                }
+            });
+        }
+
+        // حذف منتج
+        function deleteProduct(id) {
+            if (!confirm("هل أنت متأكد من حذف هذا المنتج؟")) return;
+
+            fetch(apiBase + id + "/", { method: "DELETE" })
+                .then(res => {
+                    if (res.ok) {
+                        alert("تم الحذف ✅");
+                        loadProducts();
+                    } else {
+                        alert("خطأ أثناء الحذف ❌");
+                    }
+                });
+        }
+
+        // تحميل المنتجات عند فتح الصفحة
+        loadProducts();
+    </script>
+</body>
+</html>

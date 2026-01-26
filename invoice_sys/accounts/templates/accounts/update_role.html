@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Update Role</title>
+</head>
+<body>
+  <h2>Update User Role</h2>
+  <form id="updateForm">
+    <input type="number" id="userId" placeholder="User ID" required /><br/>
+    <select id="role">
+      <option value="sales">Sales</option>
+      <option value="manager">Manager</option>
+      <option value="owner">Owner</option>
+    </select><br/>
+    <button type="submit">Update Role</button>
+  </form>
+  <p id="msg"></p>
+  <button onclick="logout()">Logout</button>
+
+  <script>
+    function getAuthHeader() {
+      const token = localStorage.getItem("access");
+      return token ? { "Authorization": `Bearer ${token}` } : {};
+    }
+    function logout() {
+      localStorage.removeItem("access");
+      localStorage.removeItem("refresh");
+      window.location.href = "/accounts/login.html";
+    }
+    async function authFetch(url, options = {}) {
+      options.headers = {...options.headers, ...getAuthHeader()};
+      let res = await fetch(url, options);
+      if (res.status === 401) {
+        const refresh = localStorage.getItem("refresh");
+        if (!refresh) { logout(); return; }
+        const tokenRes = await fetch("/api/accounts/token/refresh/", {
+          method: "POST",
+          headers: {"Content-Type": "application/json"},
+          body: JSON.stringify({ refresh })
+        });
+        if (tokenRes.ok) {
+          const data = await tokenRes.json();
+          localStorage.setItem("access", data.access);
+          options.headers = {...options.headers, "Authorization": `Bearer ${data.access}`};
+          res = await fetch(url, options);
+        } else { logout(); return; }
+      }
+      return res;
+    }
+
+    document.getElementById("updateForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const userId = document.getElementById("userId").value;
+      const role = document.getElementById("role").value;
+
+      const res = await authFetch(`/api/accounts/users/${userId}/role/`, {
+        method: "PUT",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ role })
+      });
+
+      document.getElementById("msg").textContent = res.ok ? "Role updated successfully!" : "Failed to update role!";
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+{% load static %}
+<head>
+  <meta charset="UTF-8">
+  <title>Invoices</title>
+</head>
+<body>
+  <h2>Invoices</h2>
+  <button onclick="logout()">Logout</button>
+
+  <!-- 🔹 زرار الداشبورد هنظهره لو المستخدم مانجر أو أونر -->
+  <button id="dashboardBtn" style="display:none;">🏠 Dashboard</button>
+
+  <button onclick="window.location.href='/invoices/create/'">➕ Create New Invoice</button>
+
+  <div id="invoiceList"></div>
+  <div id="pagination"></div>
+
+<script src="{% static 'accounts/js/auth.js' %}?v=2"></script>
+  <script>
+    // 🔹 دالة لجلب بيانات المستخدم الحالي وتحديد إظهار الزرار
+    async function getUserInfo() {
+      try {
+        const res = await authFetch("/api/accounts/me/");
+        if (!res.ok) {
+          console.error("Failed to fetch user info");
+          return;
+        }
+
+        const user = await res.json();
+        console.log("Logged in user:", user);
+
+        // ✅ إظهار الزرار لو المستخدم Manager أو Owner
+        if (user.role === "manager" || user.role === "owner") {
+          const dashBtn = document.getElementById("dashboardBtn");
+          dashBtn.style.display = "inline-block";
+          dashBtn.addEventListener("click", () => {
+            window.location.href = "/dashboard/";
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching user info:", error);
+      }
+    }
+
+    // استدعاء الدالة عند تحميل الصفحة
+    getUserInfo();
+
+    // =====================================
+    // 🔹 نفس كود الفواتير بتاعك بالظبط
+    // =====================================
+    async function fetchInvoices(page = 1) {
+      const res = await authFetch(`/api/invoices/?page=${page}`);
+      const data = await res.json();
+
+      const invoiceList = document.getElementById("invoiceList");
+      invoiceList.innerHTML = "";
+      data.results.forEach(inv => {
+        invoiceList.innerHTML += `
+          <p><b>ID:</b> ${inv.id} | Client: ${inv.client.name} | Total: ${inv.total_amount} | Status: ${inv.status}</p>
+        `;
+      });
+
+      const pagination = document.getElementById("pagination");
+      pagination.innerHTML = "";
+
+      if (data.previous) {
+        pagination.innerHTML += `<button onclick="fetchInvoices(${page - 1})">⬅ Prev</button>`;
+      }
+      if (data.next) {
+        pagination.innerHTML += `<button onclick="fetchInvoices(${page + 1})">Next ➡</button>`;
+      }
+    }
+
+    fetchInvoices();
+    
+  </script>
+</body>
+</html>
+

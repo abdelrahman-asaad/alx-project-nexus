@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Dashboard</h1>
+
+    <h2>Monthly Sales</h2>
+    <canvas id="salesChart"></canvas>
+    <script id="sales-data" type="application/json">{{ sales_data|safe }}</script>
+
+    <h2>Monthly Profit Tracker</h2>
+    <canvas id="profitChart"></canvas>
+    <script id="profit-data" type="application/json">{{ profit_data|safe }}</script>
+
+    <script>
+        // 🟦 Sales Chart
+        const salesData = JSON.parse(document.getElementById('sales-data').textContent);
+        new Chart(document.getElementById('salesChart'), {
+            type: 'bar',
+            data: {
+                labels: salesData.map(item => item.month),
+                datasets: [{
+                    label: 'Sales',
+                    data: salesData.map(item => item.total),
+                    backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                    borderColor: 'rgba(54, 162, 235, 1)',
+                    borderWidth: 1
+                }]
+            }
+        });
+
+        // 💰 Profit Chart
+        const parsedProfit = JSON.parse(document.getElementById('profit-data').textContent);
+        new Chart(document.getElementById('profitChart'), {
+            type: 'line',
+            data: {
+                labels: parsedProfit.map(item => item.month),
+                datasets: [{
+                    label: 'Profit',
+                    data: parsedProfit.map(item => item.profit),
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    fill: false,
+                    tension: 0.1
+                }]
+            }
+        });
+    </script>
+</body>
+</html>
