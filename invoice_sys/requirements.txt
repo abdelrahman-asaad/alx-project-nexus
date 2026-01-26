@@ -1,0 +1,45 @@
+# --- Core Framework ---
+Django==4.2.27
+djangorestframework==3.15.2
+djangorestframework-simplejwt==5.3.1
+django-cors-headers==4.4.0
+django-filter==24.3
+django-ratelimit==4.1.0
+
+# --- Database & Cache ---
+psycopg2-binary==2.9.10
+dj-database-url==3.0.1
+redis==5.2.1
+django-redis==5.4.0
+
+# --- Task Queue (Celery) ---
+celery==5.5.3
+kombu==5.5.4
+billiard==4.2.4
+amqp==5.3.1
+vine==5.1.0
+
+# --- API Documentation & Schema ---
+drf-yasg==1.21.10
+jsonschema>=4.18.0,<4.20.0  # Kept below 4.20 to avoid drf-yasg conflicts
+uritemplate==4.1.1
+
+# --- Auth & Security ---
+PyJWT==2.9.0
+cryptography==46.0.3
+bcrypt==5.0.0
+PyNaCl==1.6.2
+python-decouple==3.8
+python-dotenv==0.21.1
+
+# --- Utilities & Servers ---
+gunicorn==23.0.0
+Pillow==10.4.0
+whitenoise==6.7.0
+requests==2.32.4
+python-dateutil==2.9.0.post0
+pytz==2025.2
+tzdata==2025.3
+asgiref==3.8.1
+sqlparse==0.5.5
+reportlab==4.3.0
