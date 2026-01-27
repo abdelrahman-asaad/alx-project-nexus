@@ -5,6 +5,42 @@ from django.views.decorators.cache import never_cache
 def home_page(request):
     return render(request, "accounts/home.html")
 
+# accounts/views_html.py
+
+from django.views import View
+from django.contrib.auth import get_user_model
+from .tasks import notify_owner_user_verified
+
+User = get_user_model()
+
+class ActivateAccountHTMLView(View):
+    template_name = "accounts/activate.html"
+
+    def get(self, request):
+        # عرض الفورم فقط
+        return render(request, self.template_name)
+
+    def post(self, request):
+        email = request.POST.get("email")
+        password = request.POST.get("password")
+        context = {}
+
+        try:
+            user = User.objects.get(email=email)
+            
+            if user.has_usable_password():
+                context['error'] = "Account already active. Please login."
+            else:
+                user.set_password(password)
+                user.is_active = True
+                user.save()
+                # تشغيل مهمة خلفية
+                notify_owner_user_verified.delay(user.email)
+                context['message'] = "Password set successfully. Owner notified."
+        except User.DoesNotExist:
+            context['error'] = "Email not found in our records. Contact Admin."
+
+        return render(request, self.template_name, context)
 
 # صفحة التسجيل
 def register_page(request):

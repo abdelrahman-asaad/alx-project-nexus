@@ -24,12 +24,12 @@ class Category(models.Model):
     def __str__(self):
         return self.name
     
-class StockHistory(models.Model):
-    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='stock_history')
-    old_stock = models.IntegerField()
-    new_stock = models.IntegerField()
-    changed_at = models.DateTimeField(auto_now_add=True)
-    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)    
+#class StockHistory(models.Model):
+#    product = models.ForeignKey('Product', on_delete=models.CASCADE, related_name='stock_history')
+#    old_stock = models.IntegerField()
+#    new_stock = models.IntegerField()
+#    changed_at = models.DateTimeField(auto_now_add=True)
+#    changed_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)    
 
 
 class Product(models.Model):

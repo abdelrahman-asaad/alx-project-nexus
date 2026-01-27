@@ -1,14 +1,35 @@
-from django.contrib.auth.models import AbstractUser
+from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
-#creating custom user and registering it in settings.py: AUTH_USER_MODEL = 'accounts.User'
-class User(AbstractUser):
-    ROLE_CHOICES = (
-        ('sales', 'Sales'), 
-        ('manager', 'Manager'),
-        ('owner', 'Owner'),#admin
-    )
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES)
+class UserManager(BaseUserManager):  #custom user manager instead of default one
+    def create_user(self, email, password=None, **extra_fields):
+        if not email:
+            raise ValueError('The Email field must be set')
+        email = self.normalize_email(email)
+        user = self.model(email=email, **extra_fields)
+        user.set_password(password)
+        user.save(using=self._db)
+        return user
 
-    def __str__(self):
-        return f"{self.username} ({self.role})"
+    def create_superuser(self, email, password=None, **extra_fields):
+        extra_fields.setdefault('is_staff', True)
+        extra_fields.setdefault('is_superuser', True)
+        return self.create_user(email, password, **extra_fields)
+
+class User(AbstractUser):
+    # 1. إلغاء حقل الـ username تماماً
+    username = None 
+    # 2. جعل الإيميل فريد وإلزامي
+    email = models.EmailField(unique=True)
+    role = models.CharField(max_length=20, choices=[('owner', 'Owner'), ('manager', 'Manager'), ('sales', 'Sales')])
+
+    # 3. إخبار دجانغو أن الإيميل هو المعرف الأساسي
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = [] # الإيميل والباسورد مطلوبين تلقائياً
+
+    objects = UserManager() # ربط المانجر الجديد
+    def save(self, *args, **kwargs):
+        # لو اليوزر ده superuser، خليه Owner أوتوماتيك
+        if self.is_superuser:
+            self.role = 'owner'
+        super().save(*args, **kwargs)

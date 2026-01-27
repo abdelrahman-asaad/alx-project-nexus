@@ -1,21 +1,59 @@
 from rest_framework import generics, permissions
-from .serializers import RegisterSerializer, UserSerializer, UpdateRoleSerializer
+from .serializers import RegisterSerializer, UserSerializer, UpdateRoleSerializer, ActivateAccountSerializer
 from django.contrib.auth import get_user_model
 from .permissions import IsOwner, IsOwnerOrManager
 
 User = get_user_model()
 
 
-# Register new user
-class RegisterView(generics.CreateAPIView):  # CreateAPIView >> POST
-    queryset = User.objects.all() 
-    serializer_class = RegisterSerializer
-    permission_classes = [permissions.AllowAny]  # أي حد يقدر يعمل Register
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .tasks import notify_owner_user_verified
+from rest_framework import status
 
-# or permission_classes = [permissions.IsAdminUser]
-# to allow only admin to create users and set their roles 
-# and that's the best practice in real-world applications
-# i just allowed anyone to register for testing purposes
+class ActivateAccountView(APIView):
+    # لا نضع IsAuthenticated هنا لأن المستخدم لم يسجل دخوله بعد
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        # استخدام السيريالايزر للتحقق من صحة الإيميل والباسورد
+        serializer = ActivateAccountSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"]
+        password = serializer.validated_data["password"]
+
+        try:
+            # البحث باستخدام __iexact لتجنب مشاكل الحروف الكبيرة والصغيرة
+            user = User.objects.get(email__iexact=email)
+
+            # المنطق المعتمد على unusable_password
+            if user.has_usable_password():
+                return Response(
+                    {"message": "This account is already activated. Please sign in."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # تعيين الباسورد (سيصبح الآن usable) وتفعيل الحساب
+            user.set_password(password)
+            user.is_active = True
+            user.save()
+
+            # تشغيل مهمة الخلفية لإرسال الإيميل
+            # نرسل الـ ID لضمان كفاءة Celery
+            notify_owner_user_verified.delay(user.id)
+
+            return Response(
+                {"message": "Email activated successfully! You can now log in."},
+                status=status.HTTP_200_OK
+            )
+
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Email not found. Please contact your administrator."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
 
 # List users (Owner فقط أو Owner + Manager على حسب متطلباتك)
 class UserListView(generics.ListAPIView):  # ListAPIView >> GET

@@ -27,7 +27,9 @@ class ClientCreateView(generics.CreateAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
     permission_classes = [IsSalesOrManager]
-    
+    def perform_create(self, serializer):
+        # self.request.user هو المستخدم صاحب الـ Token الحالي
+        serializer.save(created_by=self.request.user)    
 
 # PUT /api/clients/<int:pk>/ – Update client (Manager only)
 class ClientUpdateView(generics.UpdateAPIView):
