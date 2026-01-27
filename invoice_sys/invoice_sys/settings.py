@@ -53,7 +53,7 @@ REST_FRAMEWORK = {
     ]
     ,
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "PAGE_SIZE": 10,  # عدد الفواتير في كل صفحة
+    "PAGE_SIZE": 10,  # in all apis such as products, clients, invoices
     "DEFAULT_FILTER_BACKENDS": [
         "django_filters.rest_framework.DjangoFilterBackend",
         "rest_framework.filters.OrderingFilter",
@@ -205,20 +205,35 @@ LOGOUT_REDIRECT_URL = '/accounts/login/'
 STATICFILES_STORAGE = "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"
 
 import os
+from pathlib import Path
 from dotenv import load_dotenv
 
-# تحميل المتغيرات من ملف .env
-load_dotenv()
+# 1. تحديد مسار المشروع الأساسي
+# (تأكد أن هذا السطر موجود مرة واحدة فقط في أعلى الملف)
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-# استخدام المتغيرات
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')  #in .env
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD') #in .env
+# 2. تحميل الملف بناءً على البيئة (Development أو Production)
+# نقرأ المتغير DJANGO_ENV من الـ Docker Compose
+env_mode = os.getenv('DJANGO_ENV', 'development')
+env_path = BASE_DIR / '.env.production' if env_mode == 'production' else BASE_DIR / '.env'
+
+# تنفيذ عملية التحميل من الملف المختار
+load_dotenv(dotenv_path=env_path)
+
+# 3. إعدادات بريد جوجل (SMTP)
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 
+# 4. استخراج القيم الحساسة من الملف الذي تم تحميله
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+
+# 5. إعداد البريد المرسل (الاسم الذي يظهر للمستلم)
+# نستخدم f-string لدمج اسم النظام مع الإيميل المستخرج
 DEFAULT_FROM_EMAIL = f"Invoice System <{EMAIL_HOST_USER}>"
+SERVER_EMAIL = EMAIL_HOST_USER
 CACHES = {
     "default": {
         "BACKEND": "django_redis.cache.RedisCache",

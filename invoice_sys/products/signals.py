@@ -92,3 +92,15 @@ def restore_stock_on_delete(sender, instance, **kwargs):
         old_stock=product.stock - instance.quantity,  # قبل الإضافة
         new_stock=product.stock                       # بعد الإضافة
     )
+
+from django.db.models.signals import post_save, post_delete
+from django.dispatch import receiver
+from django.core.cache import cache
+from .models import Product
+
+@receiver([post_save, post_delete], sender=Product)
+def clear_product_cache(sender, instance, **kwargs):
+    # بنمسح كاش الـ Redis أول ما منتج يتضاف أو يتمسح أو يتعدل
+    # ملحوظة: cache_page بتستخدم URL كـ key، فإحنا ممكن نمسح الكاش كله ببساطة
+    cache.clear()     #clears all cache of Redis that also includes products api cache and rate limiting cache
+    print("Product cache cleared!")

@@ -4,33 +4,36 @@ from .models import Product
 from .serializers import PublicProductSerializer, FullProductSerializer
 from .permissions import IsManagerOrOwner
 from django_filters.rest_framework import DjangoFilterBackend
-#list and create
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
+from django.views.decorators.vary import vary_on_headers # مهم جداً للأمان
+
 class ProductListCreateView(generics.ListCreateAPIView):
     queryset = Product.objects.all()
-    # backends الخاصة بالبحث والترتيب والتصفية
+    
+    # 1. بنكّيش لمدة ساعتين
+    # 2. بنستخدم vary_on_headers عشان الكاش يفصل نسخة لكل "توكين" 
+    # كدة الـ Manager هياخد نسخة والـ Sales هياخد نسخة تانية خالص
+    @method_decorator(cache_page(60 * 60 * 2))
+    @method_decorator(vary_on_headers("Authorization")) 
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
-
-    #  التصفية بالحقول (زي التصنيف أو الحالة)
     filterset_fields = ["category", "stock"]
-
-    #  البحث (بالاسم أو الوصف مثلاً)
     search_fields = ["id", "name", "description"]
-
-    #  الترتيب
     ordering_fields = ["sale_price", "stock", "name"]
-
+    
     def get_serializer_class(self):
         user = self.request.user
         if user.is_authenticated and user.role.lower() in ["manager", "owner"]:
-
             return FullProductSerializer
         return PublicProductSerializer
 
     def get_permissions(self):
         if self.request.method == "POST":
-            return [IsManagerOrOwner()]  # Create -> Manager/Owner
-        return [IsAuthenticated()]      # GET -> أي حد عامل Login
-
+            return [IsManagerOrOwner()]
+        return [IsAuthenticated()]
 #retrive , update and delete
 class ProductRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Product.objects.all()

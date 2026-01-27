@@ -6,6 +6,18 @@ services:
     command: gunicorn invoice_sys.wsgi:application --bind 0.0.0.0:8000
     ports:
       - "8000:8000"
+    environment:
+      - DJANGO_ENV=production  # بنحدد إننا في بيئة الإنتاج  
+    env_file:
+      - .env.production  # ممتاز
+    depends_on:
+      - db
+      - redis
+
+  # لازم تضيف الـ Celery هنا كمان عشان يبعت الإيميلات في الـ Production
+  celery:
+    build: .
+    command: celery -A invoice_sys worker --loglevel=info
     env_file:
       - .env.production
     depends_on:
@@ -14,10 +26,8 @@ services:
 
   db:
     image: postgres:15
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:             # الأفضل هنا برضه نستخدم env_file عشان الأمان
+      - .env.production
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
