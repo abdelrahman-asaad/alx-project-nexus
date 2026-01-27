@@ -1,76 +1,51 @@
 from django.shortcuts import render, redirect
-from django.contrib import messages
-from django.views.decorators.cache import never_cache
-# الصفحة الرئيسية (Landing Page)
-def home_page(request):
-    return render(request, "accounts/home.html")
-
-# accounts/views_html.py
-
 from django.views import View
 from django.contrib.auth import get_user_model
+from django.views.decorators.cache import never_cache
 from .tasks import notify_owner_user_verified
+from .serializers import ActivateAccountSerializer
 
 User = get_user_model()
+
+# الصفحة الرئيسية
+def home_page(request):
+    return render(request, "accounts/home.html")
 
 class ActivateAccountHTMLView(View):
     template_name = "accounts/activate.html"
 
     def get(self, request):
-        # عرض الفورم فقط
         return render(request, self.template_name)
 
     def post(self, request):
-        email = request.POST.get("email")
-        password = request.POST.get("password")
-        context = {}
-
-        try:
-            user = User.objects.get(email=email)
-            
-            if user.has_usable_password():
-                context['error'] = "Account already active. Please login."
-            else:
-                user.set_password(password)
-                user.is_active = True
-                user.save()
-                # تشغيل مهمة خلفية
-                notify_owner_user_verified.delay(user.email)
-                context['message'] = "Password set successfully. Owner notified."
-        except User.DoesNotExist:
-            context['error'] = "Email not found in our records. Contact Admin."
-
-        return render(request, self.template_name, context)
-
-# صفحة التسجيل
-def register_page(request):
-    return render(request, "accounts/register.html")
-
-
-# صفحة تسجيل الدخول
-from django.shortcuts import redirect, render
-from django.views.decorators.cache import never_cache
+       
+        serializer = ActivateAccountSerializer(data=request.POST) # validation of data from serializer
+        if serializer.is_valid():
+            user = serializer.save()
+            # إرسال الـ ID للمهمة الخلفية
+            notify_owner_user_verified.delay(user.id)
+            return render(request, self.template_name, {"message": "Success! Account activated."})
+        else:
+            # استخراج أول رسالة خطأ بشكل نظيف
+            error_msg = list(serializer.errors.values())[0][0]
+            return render(request, self.template_name, {"error": error_msg})
 
 @never_cache
 def login_page(request):
-    # ✅ لو المستخدم عنده جلسة أو توكن مخزّن، ما يشوفش صفحة login
     if request.user.is_authenticated:
-        return redirect("/invoices/")  # أو أي صفحة dashboard حسب الرول
-
+        return redirect("/invoices/")
+    
     response = render(request, "accounts/login.html")
+    # تأمين المتصفح من كاش صفحة الدخول
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-    response['Pragma'] = 'no-cache'
-    response['Expires'] = '0'
     return response
 
-
-
-# عرض المستخدمين (Owner / Manager)
+# ملاحظة: يفضل إضافة @login_required هنا لاحقاً
 def users_page(request):
     return render(request, "accounts/users.html")
 
-
-# تحديث role مستخدم (Owner فقط)
 def update_role_page(request, user_id):
-    context = {"user_id": user_id}
-    return render(request, "accounts/update_role.html", context)
+    return render(request, "accounts/update_role.html", {"user_id": user_id})
+
+def register_page(request):
+    return render(request, "accounts/register.html")

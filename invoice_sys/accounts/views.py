@@ -12,49 +12,33 @@ from .tasks import notify_owner_user_verified
 from rest_framework import status
 
 class ActivateAccountView(APIView):
-    # لا نضع IsAuthenticated هنا لأن المستخدم لم يسجل دخوله بعد
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginThrottle]
 
     def post(self, request):
-        # استخدام السيريالايزر للتحقق من صحة الإيميل والباسورد
         serializer = ActivateAccountSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        email = serializer.validated_data["email"]
-        password = serializer.validated_data["password"]
-
-        try:
-            # البحث باستخدام __iexact لتجنب مشاكل الحروف الكبيرة والصغيرة
-            user = User.objects.get(email__iexact=email)
-
-            # المنطق المعتمد على unusable_password
-            if user.has_usable_password():
-                return Response(
-                    {"message": "This account is already activated. Please sign in."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # تعيين الباسورد (سيصبح الآن usable) وتفعيل الحساب
-            user.set_password(password)
-            user.is_active = True
-            user.save()
-
-            # تشغيل مهمة الخلفية لإرسال الإيميل
-            # نرسل الـ ID لضمان كفاءة Celery
+        if serializer.is_valid():
+            user = serializer.save() # هينفذ الـ save اللي إنت كاتبها في السيريالايزر
+            
+            # تشغيل المهمة خلفية باستخدام الـ ID
             notify_owner_user_verified.delay(user.id)
-
+            
             return Response(
                 {"message": "Email activated successfully! You can now log in."},
                 status=status.HTTP_200_OK
             )
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        except User.DoesNotExist:
-            return Response(
-                {"error": "Email not found. Please contact your administrator."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .throttles import LoginThrottle # استيراد الكلاس اللي عملناه
 
-
+class LoginView(APIView):
+    throttle_classes = [LoginThrottle]  # تطبيق الحماية هنا
+    
+    def post(self, request):
+        # الكود بتاع تسجيل الدخول (التحقق من الاسم والباسورد)
+        return Response({"message": "Login successful"})
 # List users (Owner فقط أو Owner + Manager على حسب متطلباتك)
 class UserListView(generics.ListAPIView):  # ListAPIView >> GET
     queryset = User.objects.all()
