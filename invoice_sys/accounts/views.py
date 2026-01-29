@@ -2,7 +2,7 @@ from rest_framework import generics, permissions
 from .serializers import RegisterSerializer, UserSerializer, UpdateRoleSerializer, ActivateAccountSerializer
 from django.contrib.auth import get_user_model
 from .permissions import IsOwner, IsOwnerOrManager
-
+from .throttles import LoginThrottle # استيراد الكلاس اللي عملناه
 User = get_user_model()
 
 
@@ -31,7 +31,7 @@ class ActivateAccountView(APIView):
 
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .throttles import LoginThrottle # استيراد الكلاس اللي عملناه
+
 
 class LoginView(APIView):
     throttle_classes = [LoginThrottle]  # تطبيق الحماية هنا

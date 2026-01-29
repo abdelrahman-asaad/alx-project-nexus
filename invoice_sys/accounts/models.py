@@ -20,14 +20,20 @@ class User(AbstractUser):
     # 1. إلغاء حقل الـ username تماماً
     username = None 
     # 2. جعل الإيميل فريد وإلزامي
-    email = models.EmailField(unique=True)
-    role = models.CharField(max_length=20, choices=[('owner', 'Owner'), ('manager', 'Manager'), ('sales', 'Sales')])
+    email = models.EmailField(unique=True, db_index=True)
+    role = models.CharField(max_length=20, choices=[('owner', 'Owner'), ('manager', 'Manager'),
+     ('sales', 'Sales')], db_index=True)
 
     # 3. إخبار دجانغو أن الإيميل هو المعرف الأساسي
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = [] # الإيميل والباسورد مطلوبين تلقائياً
 
     objects = UserManager() # ربط المانجر الجديد
+    class Meta:
+        # إضافة Index مركب لو كنت هتبحث بالإيميل والـ Role سوا كتير
+        indexes = [
+            models.Index(fields=['email', 'role']),
+        ]
     def save(self, *args, **kwargs):
         # لو اليوزر ده superuser، خليه Owner أوتوماتيك
         if self.is_superuser:

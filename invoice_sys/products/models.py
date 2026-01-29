@@ -19,8 +19,11 @@ CURRENCY_RATES = {
 
 class Category(models.Model):
     
-    name = models.CharField(max_length=100, unique=True)
-
+    name = models.CharField(max_length=100, unique=True) #unique=True means this indexed
+    
+    class Meta:
+        verbose_name_plural = "Categories" # لتصحيح الاسم في الـ Admin
+    
     def __str__(self):
         return self.name
     
@@ -33,7 +36,7 @@ class Category(models.Model):
 
 
 class Product(models.Model):
-    name = models.CharField(max_length=100, unique=True) #send to json
+    name = models.CharField(max_length=100, unique=True, db_index=True) #send to json
     description = models.TextField(blank=True, null=True) #null > dont send to json
 
     #  السعر بعد التحويل للجنيه (اللي هنتعامل بيه في النظام)
@@ -48,9 +51,19 @@ class Product(models.Model):
 #null=False → الـ DB ما يسمحش بقيمة NULL.
 #عندك default="EGP" → لو مابعتش الحقل، Django هيخزن "EGP" تلقائيًا.
     
+    #foreign key is indexed by default
     category = models.ForeignKey("Category", on_delete=models.SET_NULL, null=True, blank=True) #dont send to json
-    stock = models.PositiveIntegerField(default=0)
+    stock = models.PositiveIntegerField(default=0, db_index=True) # مهم للبحث عن النواقص
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name="products_created")
+    
+    #created_by is indexed by default because it's a ForeignKey
+    
+    class Meta:
+        # Index مركب للبحث بالاسم جوه فئة معينة (أكثر استعلام شائع)
+        indexes = [
+            models.Index(fields=['category', 'name']),
+        ]
+
     def __str__(self):
         return f"{self.name} ({self.sale_price} EGP)"
 
@@ -87,7 +100,10 @@ class StockHistory(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name="stock_history")
     old_stock = models.PositiveIntegerField()
     new_stock = models.PositiveIntegerField()
-    changed_at = models.DateTimeField(auto_now_add=True)
+    changed_at = models.DateTimeField(auto_now_add=True, db_index=True) # إضافة Index هنا عشان تقارير الجرد السنوية والشهرية
+
+    class Meta:
+        ordering = ['-changed_at'] # عشان يظهر لك أحدث التغييرات أولًا
 
     def __str__(self):
         return f"{self.product.name}: {self.old_stock} → {self.new_stock}"
