@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'dashboard',
     'rest_framework',
     'rest_framework_simplejwt',
+    'graphene_django',
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -258,3 +259,7 @@ CELERY_BROKER_URL = "redis://redis:6379/0"
 CELERY_RESULT_BACKEND = "redis://redis:6379/0"
 
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
+
+GRAPHENE = {
+    "SCHEMA": "invoices.schema.schema" 
+}

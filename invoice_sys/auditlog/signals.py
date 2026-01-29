@@ -20,7 +20,7 @@ def log_invoice_save(sender, instance, created, **kwargs):
         action=action,
         model_name=sender.__name__,
         object_id=instance.id,
-        changes=f"Invoice {instance.id} {action.lower()} at {now()}",
+        changes_summary=f"Invoice {instance.id} {action.lower()} at {now()}",
         timestamp=now(),
     )
 
@@ -36,7 +36,7 @@ def log_invoice_delete(sender, instance, **kwargs):
         action="Deleted",
         model_name=sender.__name__,
         object_id=instance.id,
-        changes=f"Invoice {instance.id} deleted at {now()}",
+        changes_summary=f"Invoice {instance.id} deleted at {now()}",
         timestamp=now(),
     )
 

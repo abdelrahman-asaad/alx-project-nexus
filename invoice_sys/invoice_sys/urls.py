@@ -16,24 +16,33 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path, include
+from django.views.decorators.csrf import csrf_exempt
+from graphene_django.views import GraphQLView
+# تأكد من إنشاء ملف schema.py رئيسي يجمع كل الـ schemas من التطبيقات
+# من خلال إنشاء Root Schema (سأوضحها لك بالأسفل)
 
-#  API endpoints
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('api/accounts/', include('accounts.urls')),   # كل الendpoints الخاصة بالaccounts
-    path('api/products/', include('products.urls')),   
-    path('api/invoices/', include('invoices.urls')),  
-    path("api/Clients/", include("clients.urls")),
-    path("api/payments/", include("payments.urls")),
-    path('api/dashboard/', include('dashboard.urls')),
-    path("api/auditlogs/", include("auditlog.urls")),
+    
+    # 🔗 GraphQL Endpoint (البوابة الجديدة)
+    # csrf_exempt مهمة هنا عشان تقدر تبعت Queries من غير مشاكل الـ CSRF في البداية
+    path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
 
- # HTML pages
+    # 🚀 API Endpoints (DRF)
+    path('api/accounts/', include('accounts.urls')),
+    path('api/products/', include('products.urls')),
+    path('api/invoices/', include('invoices.urls')),
+    path('api/clients/', include('clients.urls')), # لاحظ توحيد الـ lowercase في المسار
+    path('api/payments/', include('payments.urls')),
+    path('api/dashboard/', include('dashboard.urls')),
+    path('api/auditlogs/', include('auditlog.urls')),
+
+    # 🖥️ HTML Pages
     path('accounts/', include('accounts.urls_html')),
     path('products/', include('products.urls_html')),
     path('invoices/', include('invoices.urls_html')),
     path('clients/', include('clients.urls_html')),
-    path('payments/', include('payments.urls_html'))
-
+    path('payments/', include('payments.urls_html')),
+    # يفضل إضافة مسار الـ dashboard هنا أيضاً لو كانت صفحة HTML
+    path('dashboard/', include('dashboard.urls_html')), 
 ]
-
