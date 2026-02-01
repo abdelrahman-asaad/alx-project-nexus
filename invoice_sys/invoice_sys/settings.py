@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'graphene_django',
+    'drf_spectacular',
 ]
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
@@ -65,13 +66,20 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '10/day',
-        'user': '1000/day',
-        'login': '5/hour',  # مسموح بـ 5 محاولات فقط كل ساعة لكل IP
-    }
-
+        'anon': '10/day',            #10/day
+        'user': '1000/day',           #1000/day
+        'login': '5/hour',        # 5/hour مسموح بـ 5 محاولات فقط كل ساعة لكل IP
+    },
+'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
         
+        # إعدادات اختيارية للـ Swagger
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'Invoice System API',
+    'DESCRIPTION': 'Documentation for Invoices and Clients Management System',
+    'VERSION': '1.0.0',
+    'SERVE_INCLUDE_SCHEMA': False,
+}
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',

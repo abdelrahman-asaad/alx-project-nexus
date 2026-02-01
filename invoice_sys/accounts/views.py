@@ -1,26 +1,50 @@
-from rest_framework import generics, permissions
-from .serializers import RegisterSerializer, UserSerializer, UpdateRoleSerializer, ActivateAccountSerializer
-from django.contrib.auth import get_user_model
-from .permissions import IsOwner, IsOwnerOrManager
-from .throttles import LoginThrottle # استيراد الكلاس اللي عملناه
-User = get_user_model()
-
-
+from rest_framework import generics, permissions, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .tasks import notify_owner_user_verified
-from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth import get_user_model
 
+# --- 🚀 استيراد أدوات التوثيق (Swagger Tools) ---
+from drf_spectacular.utils import extend_schema, inline_serializer
+from rest_framework import serializers
+
+from .serializers import (
+    RegisterSerializer, UserSerializer, 
+    UpdateRoleSerializer, ActivateAccountSerializer
+)
+from .permissions import IsOwner, IsOwnerOrManager
+from .throttles import LoginThrottle
+from .tasks import notify_owner_user_verified
+
+User = get_user_model()
+
+# 📧 تفعيل الحساب
 class ActivateAccountView(APIView):
     permission_classes = [permissions.AllowAny]
+    # تطبيق الـ Throttle لمنع الهجمات المتكررة (Brute Force)
     throttle_classes = [LoginThrottle]
 
+    # 📝 نغشش Swagger إن الـ Response عبارة عن رسالة نجاح
+    @extend_schema(
+        request=ActivateAccountSerializer,
+        responses={
+            200: inline_serializer(
+                name='ActivateAccountResponse',
+                fields={'message': serializers.CharField()}
+            ),
+            400: inline_serializer(
+                name='ActivateAccountError',
+                fields={'error': serializers.CharField()}
+            )
+        },
+        description="تفعيل الحساب عن طريق الكود المرسل للإيميل"
+    )
     def post(self, request):
         serializer = ActivateAccountSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save() # هينفذ الـ save اللي إنت كاتبها في السيريالايزر
+            user = serializer.save()
             
-            # تشغيل المهمة خلفية باستخدام الـ ID
+            # تشغيل مهمة Celery في الخلفية لإرسال إشعار للمدير
             notify_owner_user_verified.delay(user.id)
             
             return Response(
@@ -29,49 +53,52 @@ class ActivateAccountView(APIView):
             )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-from rest_framework.views import APIView
-from rest_framework.response import Response
 
-
+# 🔑 تسجيل الدخول
 class LoginView(APIView):
-    throttle_classes = [LoginThrottle]  # تطبيق الحماية هنا
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [LoginThrottle] 
     
+    @extend_schema(
+        responses={200: inline_serializer(name='LoginSuccess', fields={'message': serializers.CharField()})},
+        description="تسجيل الدخول للنظام"
+    )
     def post(self, request):
-        # الكود بتاع تسجيل الدخول (التحقق من الاسم والباسورد)
+        # الكود الخاص بالتحقق يتم عادة عبر الـ Token (مثل JWT)
         return Response({"message": "Login successful"})
-# List users (Owner فقط أو Owner + Manager على حسب متطلباتك)
-class UserListView(generics.ListAPIView):  # ListAPIView >> GET
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsOwnerOrManager]  # Owner أو Manager هما اللي يقدروا يشوفوا المستخدمين
 
 
-
-class UpdateUserRoleView(generics.UpdateAPIView): #to allow owner to set roles to users
-    queryset = User.objects.all()
-    serializer_class = UpdateRoleSerializer
-    permission_classes = [IsOwner]
-    # if you want only owner to promote sales to manager
-
-class DeleteUserView(generics.DestroyAPIView):
-    queryset = User.objects.all()
-    serializer_class = UserSerializer
-    permission_classes = [IsOwner]  # مثلاً: بس الـ Owner هو اللي يقدر يمسح مستخدم
-
-
-# accounts/views.py
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from .serializers import UserSerializer
-
+# 👤 بيانات المستخدم الحالي (Profile)
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
+    # 📝 هنا بنحدد إن الـ Swagger يستخدم الـ UserSerializer تلقائياً
+    @extend_schema(
+        responses={200: UserSerializer},
+        description="جلب بيانات المستخدم المسجل حالياً (Role, Email, etc.)"
+    )
     def get(self, request):
         serializer = UserSerializer(request.user)
         return Response(serializer.data)
-# This view returns the details of the currently authenticated user
-#to clarify the current logged in user info so the frontend can use it especially for role-based access control
 
-    #in the end there's a lot of use cases depending on business requirements#
+
+# 📋 عرض قائمة المستخدمين (للمديرين فقط)
+class UserListView(generics.ListAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsOwnerOrManager]
+    # ملاحظة: الـ generics مش محتاجة extend_schema لأنها بتعرف السيريالايزر لوحدها
+
+
+# 🆙 تحديث صلاحيات المستخدم (لصاحب العمل فقط)
+class UpdateUserRoleView(generics.UpdateAPIView):
+    queryset = User.objects.all()
+    serializer_class = UpdateRoleSerializer
+    permission_classes = [IsOwner]
+
+
+# ❌ مسح مستخدم
+class DeleteUserView(generics.DestroyAPIView):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer # يفضل استخدام السيريالايزر لعرض البيانات قبل المسح
+    permission_classes = [IsOwner]

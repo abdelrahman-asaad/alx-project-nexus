@@ -1,157 +1,123 @@
-from django.db.models import Sum, F, ExpressionWrapper, DecimalField
+import json
+from django.shortcuts import render
+from django.db.models import Sum, Count, F, DecimalField, ExpressionWrapper
 from django.db.models.functions import TruncMonth
+from django.core.serializers.json import DjangoJSONEncoder
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import BasePermission
+from rest_framework import serializers
+
+# --- 🚀 استيراد أدوات التوثيق (Swagger Tools) ---
+from drf_spectacular.utils import extend_schema, inline_serializer
 
 from invoices.models import Invoice, InvoiceItem
+from payments.models import Payment
+from clients.models import Client 
 
-
-# 🔒 صلاحيات
+# 🔒 صلاحيات: التحقق من أن المستخدم صاحب العمل أو مدير
 class IsOwnerOrManager(BasePermission):
     def has_permission(self, request, view):
         return request.user.is_authenticated and request.user.role in ["Owner", "Manager"]
 
 
-# 📊 Sales Summary View
+# 📊 Sales Summary View (API)
 class SalesSummaryView(APIView):
     permission_classes = [IsOwnerOrManager]
 
+    # 📝 تعريف شكل البيانات للـ Swagger باستخدام inline_serializer
+    # لأن الـ APIView لا ترتبط بموديل واحد بشكل مباشر (تستخدم حسابات متغيرة)
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name='SalesSummaryResponse',
+                fields={
+                    'total_sales': serializers.DecimalField(max_digits=12, decimal_places=2),
+                    'monthly_sales': serializers.ListField(child=serializers.DictField())
+                }
+            )
+        },
+        description="عرض ملخص إجمالي المبيعات والمبيعات الشهرية"
+    )
     def get(self, request):
-        # إجمالي المبيعات
+        # 1. حساب إجمالي المبيعات
         total_sales = Invoice.objects.aggregate(total=Sum('total_amount'))['total'] or 0
 
-        # المبيعات الشهرية
+        # 2. المبيعات الشهرية: تجميع الفواتير حسب الشهر
         monthly_sales = (
             Invoice.objects
-            .annotate(month=TruncMonth('date')) #to create month column
-            .values('month') #group by month
-            .annotate(total=Sum('total_amount')) #to create total column
+            .annotate(month=TruncMonth('date')) # تحويل التاريخ لأول يوم في الشهر للتجميع
+            .values('month')                   # Group By الشهر
+            .annotate(total=Sum('total_amount'))# مجموع مبيعات كل شهر
             .order_by('month')
-
         )
-#[
-#    {"month": datetime.date(2025, 7, 1), "total": Decimal("6000.00")},
-#    {"month": datetime.date(2025, 8, 1), "total": Decimal("12000.00")},
-#    {"month": datetime.date(2025, 9, 1), "total": Decimal("18000.00")}
-#]
-
-
-
 
         data = {
             "total_sales": total_sales,
             "monthly_sales": [
-                {"month_year": item['month'].strftime("%B %Y"), "total": item['total']}
+                {
+                    "month_year": item['month'].strftime("%B %Y") if item['month'] else "Unknown", 
+                    "total": item['total']
+                }
                 for item in monthly_sales
             ]
         }
         return Response(data)
-#{
-#  "total_sales": 18000,
-#  "monthly_sales": [
-#    {"month_year": "July 2025", "total": 6000},
-#    {"month_year": "August 2025", "total": 12000}
-#  ]
-#}
-    
 
 
-
-
-# 💰 Profit Tracker View
-# Profit Tracker - تجميع شهري
+# 💰 Profit Tracker View (API)
 class ProfitTrackerView(APIView):
     permission_classes = [IsOwnerOrManager]
-    
 
+    @extend_schema(
+        responses={
+            200: inline_serializer(
+                name='ProfitTrackerResponse',
+                fields={
+                    'profit_tracker': serializers.ListField(child=serializers.DictField())
+                }
+            )
+        },
+        description="تتبع صافي الأرباح شهرياً (سعر البيع - التكلفة)"
+    )
     def get(self, request):
-        #from invoices.models import InvoiceItem
-        # حساب الربح لكل بند
+        # حساب الربح لكل بند: (سعر الوحدة - تكلفة المنتج) * الكمية
         profit_data = (
             InvoiceItem.objects
             .annotate(
-                month=TruncMonth('invoice__date'),  # group by الشهر
+                month=TruncMonth('invoice__date'),
                 profit=ExpressionWrapper(
                     (F('unit_price') - F('product__cost_price')) * F('quantity'),
                     output_field=DecimalField(max_digits=10, decimal_places=2)
                 )
             )
-            .values('month')  # تجميع حسب الشهر #group by
+            .values('month')
             .annotate(total_profit=Sum('profit'))
             .order_by('month')
         )
-#        [
-#    {"month": datetime.date(2025, 7, 1), "total_profit": Decimal("2000.00")},
-#    {"month": datetime.date(2025, 8, 1), "total_profit": Decimal("2480.50")},
-#    {"month": datetime.date(2025, 9, 1), "total_profit": Decimal("3150.00")}
-#]
 
-
-       
-       
-        # تجهيز البيانات للـ JSON
         data = {
             "profit_tracker": [
                 {
-                    "month_year": item['month'].strftime("%B %Y"),
+                    "month_year": item['month'].strftime("%B %Y") if item['month'] else "Unknown",
                     "profit": item['total_profit']
                 }
                 for item in profit_data
             ]
         }
         return Response(data)
-    #{
-  #"profit_tracker": [
-  #  {"month_year": "July 2025", "profit": "1200.00"},
-  #  {"month_year": "August 2025", "profit": "980.50"}
-  #]
-#}
-
-'''
-أن TruncMonth('date') مش بياخد أول فاتورة في الشهر بس، ده بيحوّل كل تاريخ لأي يوم في الشهر إلى تمثيل واحد ثابت للشهر (عادة أول يوم من الشهر)، وده بيخلي كل الفواتير اللي في نفس الشهر تعتبر في نفس المجموعة عند التجميع.
-
-مثال توضيحي:
-
-لو عندك فواتير في أغسطس:
-
-date	total_amount
-2025-08-01	100
-2025-08-05	200
-2025-08-20	150
-
-لو عملت:
-
-Invoice.objects.annotate(month=TruncMonth('date')).values('month').annotate(total=Sum('total_amount'))
 
 
-الناتج هيبقى:
-
-[
-    {"month": datetime.date(2025, 8, 1), "total": 450}  # مجموع كل الفواتير في أغسطس
-]
-
-
-كل الفواتير في أغسطس اتجمعت في صف واحد بالرغم من اختلاف الأيام.
-
-month هنا مجرد تمثيل للشهر مش التاريخ الفعلي لأي فاتورة معينة.'''
-from django.shortcuts import render
-from django.db.models import Sum, Count, F, DecimalField, ExpressionWrapper
-from django.db.models.functions import TruncMonth
-from invoices.models import Invoice, InvoiceItem
-from payments.models import Payment
-from clients.models import Client   # لو اسم الموديل مختلف عدله
-
-import json
-from django.core.serializers.json import DjangoJSONEncoder
-
+# 🏠 Dashboard Page (Template View)
+# هذه الدالة مخصصة لعرض صفحة الـ HTML (Frontend) وليس للـ API
 def dashboard_page(request):
-    # 🟦 KPIs
+    # 🟦 KPIs: المؤشرات الرئيسية
     total_sales = Invoice.objects.aggregate(total=Sum('total_amount'))['total'] or 0
     total_paid = Payment.objects.aggregate(total=Sum('amount'))['total'] or 0
     active_clients = Client.objects.aggregate(total=Count('id'))['total'] or 0
 
-    # 💰 نعتبر الربح = مجموع (سعر البيع - سعر التكلفة) * الكمية
+    # 💰 حساب الأرباح الكلية والبيانات الشهرية للـ Charts
     profit_data = (
         InvoiceItem.objects
         .annotate(
@@ -168,7 +134,7 @@ def dashboard_page(request):
 
     total_profit = sum(item["total_profit"] or 0 for item in profit_data)
 
-    # 📊 مبيعات شهرية
+    # 📊 مبيعات شهرية للـ Charts
     monthly_sales = (
         Invoice.objects
         .annotate(month=TruncMonth('date'))
@@ -177,7 +143,7 @@ def dashboard_page(request):
         .order_by('month')
     )
 
-    # 🟦 تحويل ل JSON للـ Charts
+    # 🟦 تحويل البيانات لـ JSON عشان الـ JavaScript (Charts.js مثلاً) يقدر يقرأها
     sales_json = json.dumps(
         [{"month": item['month'].strftime("%B %Y"), "total": float(item['total'])} for item in monthly_sales if item['month']],
         cls=DjangoJSONEncoder

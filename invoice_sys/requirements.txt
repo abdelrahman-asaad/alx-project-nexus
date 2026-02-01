@@ -55,3 +55,13 @@ graphene-django==3.2.2
 graphene==3.3
 graphql-core==3.2.3
 graphql-relay==3.2.0
+
+# Swagger (REST API Documentation)
+drf-spectacular>=0.26.0
+
+# Testing
+pytest-django>=4.5.2
+
+# Code Quality (Linting)
+flake8>=6.0.0
+black>=23.3.0
