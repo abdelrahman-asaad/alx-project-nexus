@@ -68,7 +68,7 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '10/day',            #10/day
         'user': '1000/day',           #1000/day
-        'login': '5/hour',        # 5/hour مسموح بـ 5 محاولات فقط كل ساعة لكل IP
+        'login': '5/min',        # 5/hour مسموح بـ 5 محاولات فقط كل ساعة لكل IP
     },
 'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
@@ -269,5 +269,14 @@ CELERY_RESULT_BACKEND = "redis://redis:6379/0"
 CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
 
 GRAPHENE = {
-    "SCHEMA": "invoices.schema.schema" 
+    "SCHEMA": "invoice_sys.schema.schema" 
 }
+
+from django.core.cache import cache
+import pytest
+
+@pytest.mark.django_db
+class TestLoginThrottle:
+    def setup_method(self):
+        cache.clear() # دي بتصفر العداد قبل كل تست
+    # ... باقي التست

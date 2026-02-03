@@ -32,11 +32,7 @@ class ActivateAccountHTMLView(View):
 
 @never_cache
 def login_page(request):
-    if request.user.is_authenticated:
-        return redirect("/invoices/")
-    
     response = render(request, "accounts/login.html")
-    # تأمين المتصفح من كاش صفحة الدخول
     response['Cache-Control'] = 'no-cache, no-store, must-revalidate'
     return response
 
