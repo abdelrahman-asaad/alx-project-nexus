@@ -19,7 +19,7 @@ from clients.models import Client
 # 🔒 صلاحيات: التحقق من أن المستخدم صاحب العمل أو مدير
 class IsOwnerOrManager(BasePermission):
     def has_permission(self, request, view):
-        return request.user.is_authenticated and request.user.role in ["Owner", "Manager"]
+        return request.user.is_authenticated and request.user.role in ["owner", "manager"]
 
 
 # 📊 Sales Summary View (API)

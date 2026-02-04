@@ -5,56 +5,52 @@ from django.contrib.auth import get_user_model
 from invoices.models import Invoice
 from .models import Payment
 from clients.models import Client
+from datetime import date, timedelta
 
 User = get_user_model()
 
 class PaymentAPITests(APITestCase):
     def setUp(self):
-        # 1. تحديث اليوزرز: استخدام الإيميل وتوحيد الأدوار لـ lowercase
+        # 1. اليوزرز (lowercase roles)
         self.manager = User.objects.create_user(email="manager@test.com", password="manager123", role="manager")
         self.accountant = User.objects.create_user(email="accountant@test.com", password="accountant123", role="accountant")
         self.sales = User.objects.create_user(email="sales@test.com", password="sales123", role="sales")
 
-        # إنشاء عميل
-        self.client_obj = Client.objects.create(name="Client A", email="client@example.com", company_name="Company A")
+        # 2. عميل وفاتورة (تأكد من الحقول الإلزامية للفاتورة)
+        self.client_obj = Client.objects.create(name="Client A", company_name="Company A", created_by=self.manager)
+        
+        self.invoice = Invoice.objects.create(
+            client=self.client_obj, 
+            total_amount=1000, 
+            status="unpaid",
+            user=self.manager, # الحقل اللي اكتشفناه في الفواتير
+            date=date.today(),
+            due_date=date.today() + timedelta(days=7)
+        )
 
-        # إنشاء فاتورة (تأكد أن الـ status "unpaid" مسموح بها في الـ choices بموديل Invoice)
-        self.invoice = Invoice.objects.create(client=self.client_obj, total_amount=1000, status="unpaid")
+        self.url = reverse("payment-list-create")
 
-        self.url = reverse("payment-list-create") 
-
-    # الوصول غير المصرح به
     def test_access_denied_for_sales(self):
-        # تسجيل الدخول بالإيميل
-        self.client.login(email="sales@test.com", password="sales123")
+        self.client.force_authenticate(user=self.sales)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
-        self.client.logout()
 
-    # الوصول المصرح به للمدير والمحاسب
     def test_access_allowed_for_manager_and_accountant(self):
-        users_data = [
-            ("manager@test.com", "manager123"),
-            ("accountant@test.com", "accountant123")
-        ]
-        for email, password in users_data:
-            self.client.login(email=email, password=password)
+        for user in [self.manager, self.accountant]:
+            self.client.force_authenticate(user=user)
             response = self.client.get(self.url)
             self.assertEqual(response.status_code, status.HTTP_200_OK)
-            self.client.logout()
 
-    # إنشاء دفعة جديدة وتحديث حالة الفاتورة
     def test_create_payment_updates_invoice_status(self):
-        self.client.login(email="accountant@test.com", password="accountant123")
+        self.client.force_authenticate(user=self.accountant)
         data = {
             "invoice": self.invoice.id,
-            "amount": 1000,
-            "method": "Cash"
+            "amount": 1000.00,
+            "method": "cash", # lowercase لتطابق الـ choices
+            "date": str(date.today()) # حقل date الإلزامي في موديل Payment
         }
-        response = self.client.post(self.url, data)
+        response = self.client.post(self.url, data, format='json')
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
 
         self.invoice.refresh_from_db()
-        # تأكد أن حالة الفاتورة تتحول لـ "paid" في الـ Signals أو الـ Serializer عندك
         self.assertEqual(self.invoice.status, "paid")
-        self.client.logout()

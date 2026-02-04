@@ -18,7 +18,7 @@ class AuditLogListView(generics.ListAPIView):
     filterset_fields = ["user", "action"]
 
     # البحث في هذه الحقول
-    search_fields = ["user__username", "action", "description"]
+    search_fields = ['user__email', 'model_name', 'action', 'changes_summary']
 
     # ترتيب حسب timestamp أو user
     ordering_fields = ["timestamp", "user__username"]

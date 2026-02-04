@@ -5,11 +5,11 @@ from .serializers import ClientSerializer
 from .permissions import IsManager, IsSalesOrManager, IsOwnerOrManager
 from django_filters.rest_framework import DjangoFilterBackend
 
-# GET /api/clients/ – List all clients (Manager, Sales, Owner)
+# GET /api/clients/ – List all clients
 class ClientListView(generics.ListAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
-    permission_classes = [IsAuthenticated]  # check role in logic
+    permission_classes = [IsAuthenticated]
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
 
     filterset_fields = ["company_name"]
@@ -17,27 +17,28 @@ class ClientListView(generics.ListAPIView):
     ordering_fields = ["name", "email", "company_name"]
 
     def get_queryset(self):
-        # Managers, Sales, Owner can see
-        if self.request.user.role in ["Manager", "Sales", "Owner"]:
+        # التعديل: استخدام الأدوار بصيغة lowercase لتطابق الموديل الجديد
+        if self.request.user.role in ["manager", "sales", "owner"]:
             return Client.objects.all()
         return Client.objects.none()
 
-# POST /api/clients/ – Create new client (Sales, Manager)
+# POST /api/clients/ – Create new client
 class ClientCreateView(generics.CreateAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
     permission_classes = [IsSalesOrManager]
+    
     def perform_create(self, serializer):
-        # self.request.user هو المستخدم صاحب الـ Token الحالي
+        # الربط مع المستخدم الحالي (الذي يستخدم الإيميل الآن)
         serializer.save(created_by=self.request.user)    
 
-# PUT /api/clients/<int:pk>/ – Update client (Manager only)
+# PUT /api/clients/<int:pk>/ – Update client
 class ClientUpdateView(generics.UpdateAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
     permission_classes = [IsManager]
 
-# DELETE /api/clients/<int:pk>/ – Delete client (Owner or Manager)
+# DELETE /api/clients/<int:pk>/ – Delete client
 class ClientDeleteView(generics.DestroyAPIView):
     queryset = Client.objects.all()
     serializer_class = ClientSerializer
