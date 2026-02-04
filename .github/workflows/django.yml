@@ -1,0 +1,32 @@
+name: Django CI-CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. سحب الكود
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. بناء وتشغيل الحاويات
+      # استخدمنا -f لتحديد مكان ملف الدوكر بدقة
+      - name: Build and Start Containers
+        run: |
+          docker-compose -f invoice_sys/docker-compose.dev.yml up --build -d
+
+      # 3. انتظار الخدمات (الداتا بيز والرديس)
+      - name: Wait for services
+        run: sleep 15
+
+      # 4. تشغيل الاختبارات
+      # هنا بنقول للدوكر ادخل جوه حاوية الـ web وشغل pytest
+      - name: Run Pytest
+        run: |
+          docker-compose -f invoice_sys/docker-compose.dev.yml exec -T web pytest
