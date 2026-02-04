@@ -1,0 +1,30 @@
+name: Django CI-CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. سحب الكود من GitHub
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # 2. بناء وتشغيل الحاويات (Docker Compose)
+      - name: Build and Start Containers
+        run: |
+          docker-compose -f docker-compose.dev.yml up --build -d
+
+      # 3. التأكد إن الداتا بيز والـ Redis جاهزين (انتظار بسيط)
+      - name: Wait for services
+        run: sleep 10
+
+      # 4. تشغيل الاختبارات (الخطوة اللي بتحدد نجاح الـ CI من فشله)
+      - name: Run Pytest
+        run: |
+          docker-compose -f docker-compose.dev.yml exec -T web pytest
