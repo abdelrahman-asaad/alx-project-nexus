@@ -7,14 +7,15 @@ on:
     branches: [ "main", "master" ]
 
 jobs:
+  # ---------------------------------------------------------
+  # الجزء الأول: الـ CI (التأكد من أن الكود سليم)
+  # ---------------------------------------------------------
   test:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # خطوة جديدة: إنشاء ملف .env وهمي لتجنب خطأ الدوكر
       - name: Create stub .env file
         working-directory: ./invoice_sys
         run: |
@@ -36,3 +37,24 @@ jobs:
         working-directory: ./invoice_sys
         run: |
           docker compose -f docker-compose.dev.yml exec -T web pytest
+
+  # ---------------------------------------------------------
+  # الجزء الثاني: الـ CD (نشر الكود للسيرفر - ديمو تعليمي)
+  # ---------------------------------------------------------
+  deploy:
+    needs: test  # ⬅️ أهم سطر: لا يتم النشر إلا لو نجحت التستات 100%
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # ⬅️ النشر يتم فقط عند الرفع على الفرع الرئيسي
+    
+    steps:
+      - name: Simulation of Production Deployment
+        run: |
+          echo "🚀 Starting Deployment process..."
+          echo "Step 1: Connecting to Production Server via SSH..."
+          echo "Step 2: Running 'git pull origin main' on server..."
+          echo "Step 3: Rebuilding Docker images: 'docker compose -f docker-compose.prod.yml up -d --build'"
+          echo "Step 4: Running database migrations on production..."
+          echo "✅ SUCCESS: App version ${{ github.sha }} is now LIVE!"
+
+      - name: Post-Deployment Health Check
+        run: echo "Sending request to https://your-app-demo.com/health... Status: 200 OK"
