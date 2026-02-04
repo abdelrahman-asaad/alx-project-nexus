@@ -1,0 +1,26 @@
+name: Django CI-CD Pipeline
+
+on:
+  push:
+    branches: [ "main", "master", "develop" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Build and Start Containers
+        run: |
+          # لاحظ دخلنا الفولدر الأول وبعدين شغلنا الأمر
+          cd alx-project-nexus/invoice_sys && docker-compose -f docker-compose.dev.yml up --build -d
+
+      - name: Wait for services
+        run: sleep 15
+
+      - name: Run Pytest
+        run: |
+          cd alx-project-nexus/invoice_sys && docker-compose -f docker-compose.dev.yml exec -T web pytest
