@@ -14,10 +14,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      # خطوة جديدة: إنشاء ملف .env وهمي لتجنب خطأ الدوكر
+      - name: Create stub .env file
+        working-directory: ./invoice_sys
+        run: |
+          echo "POSTGRES_DB=test_db" >> .env
+          echo "POSTGRES_USER=test_user" >> .env
+          echo "POSTGRES_PASSWORD=test_pass" >> .env
+          echo "SECRET_KEY=test_secret_key" >> .env
+          echo "DEBUG=True" >> .env
+
       - name: Build and Start Containers
         working-directory: ./invoice_sys
         run: |
-          # شيلنا الشرطة من هنا
           docker compose -f docker-compose.dev.yml up --build -d
 
       - name: Wait for services
@@ -26,5 +35,4 @@ jobs:
       - name: Run Pytest
         working-directory: ./invoice_sys
         run: |
-          # وشيلنا الشرطة من هنا كمان
           docker compose -f docker-compose.dev.yml exec -T web pytest
