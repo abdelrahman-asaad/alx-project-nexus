@@ -161,4 +161,4 @@ def dashboard_page(request):
         "sales_data": sales_json,
         "profit_data": profit_json,
     }
-    return render(request, "dashboard.html", context)
+    return render(request, "dashboard/dashboard.html", context)

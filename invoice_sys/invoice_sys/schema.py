@@ -1,8 +1,24 @@
 import graphene
-import products.schema # الملف اللي عملناه في الخطوة اللي فاتت
+import graphql_jwt
+import products.schema
+import invoices.schema
+import clients.schema
+import dashboard.schema
 
-class Query(products.schema.Query, graphene.ObjectType):
-    # هنا هتضيف الـ Queries من باقي التطبيقات زي (invoices.schema.Query) مستقبلاً
+# 1. تجميع كل الـ Queries
+class Query(
+    products.schema.Query,
+    clients.schema.Query,
+    dashboard.schema.DashboardQuery,
+    graphene.ObjectType
+):
     pass
 
-schema = graphene.Schema(query=Query)
+# 2. تجميع كل الـ Mutations (عشان الـ Token يشتغل)
+class Mutation(graphene.ObjectType):
+    token_auth = graphql_jwt.ObtainJSONWebToken.Field()
+    verify_token = graphql_jwt.Verify.Field()
+    refresh_token = graphql_jwt.Refresh.Field()
+
+# 3. تعريف الـ Schema مرة واحدة فقط بتجمع الاتنين
+schema = graphene.Schema(query=Query, mutation=Mutation)

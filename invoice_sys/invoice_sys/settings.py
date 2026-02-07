@@ -271,6 +271,15 @@ CSRF_TRUSTED_ORIGINS = ['http://localhost:8000', 'http://127.0.0.1:8000']
 GRAPHENE = {
     "SCHEMA": "invoice_sys.schema.schema" 
 }
+# urls.py الرئيسي
+from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
+from graphene_django.views import GraphQLView
+
+urlpatterns = [
+    # ... الـ paths التانية
+    path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+]
 
 from django.core.cache import cache
 import pytest
@@ -280,3 +289,16 @@ class TestLoginThrottle:
     def setup_method(self):
         cache.clear() # دي بتصفر العداد قبل كل تست
     # ... باقي التست
+
+
+    AUTHENTICATION_BACKENDS = [
+    "graphql_jwt.backends.JSONWebTokenBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+GRAPHENE = {
+    "SCHEMA": "invoice_sys.schema.schema",
+    "MIDDLEWARE": [
+        "graphql_jwt.middleware.JSONWebTokenMiddleware",
+    ],
+}
