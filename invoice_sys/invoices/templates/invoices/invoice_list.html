@@ -58,8 +58,7 @@
       invoiceList.innerHTML = "";
       data.results.forEach(inv => {
         invoiceList.innerHTML += `
-          <p><b>ID:</b> ${inv.id} | Client: ${inv.client.name} | Total: ${inv.total_amount} | Status: ${inv.status}</p>
-        `;
+          <p><b>ID:</b> ${inv.id} | Client: ${inv.client_name} | Total: ${inv.total_amount}</p>        `;
       });
 
       const pagination = document.getElementById("pagination");

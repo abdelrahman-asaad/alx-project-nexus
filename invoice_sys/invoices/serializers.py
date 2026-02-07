@@ -9,14 +9,19 @@ class InvoiceItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'quantity', 'unit_price', 'total_price']
 
 
+# استيراد الـ Serializer الخاص بالعميل (تأكد من المسار الصحيح)
+from clients.serializers import ClientSerializer 
+
 class InvoiceSerializer(serializers.ModelSerializer):
-    items = InvoiceItemSerializer(many=True) #nested serializer field #many to make more than one item to invoice
+    items = InvoiceItemSerializer(many=True)
+    # هنسحب اسم العميل ونحطه في حقل بسيط اسمه client_name
+    client_name = serializers.ReadOnlyField(source='client.name')
     total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Invoice
-        fields = ['id', 'client', 'user', 'date', 'due_date', 'status', 'total_amount', 'items']
-
+        # تأكد من إضافة client_name للقائمة هنا
+        fields = ['id', 'client', 'client_name', 'user', 'date', 'due_date', 'status', 'total_amount', 'items']
     def create(self, validated_data): #built-in method
         items_data = validated_data.pop('items') #because items is not original field in Invoice 
         invoice = Invoice.objects.create(**validated_data) #such as client, user ,date ...
